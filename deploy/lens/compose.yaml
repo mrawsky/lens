@@ -4,7 +4,7 @@ name: lens
 services:
   lens:
     build:
-      context: ../..
+      context: .
       dockerfile: deploy/runtime/Dockerfile
     image: lens:local
 
@@ -58,7 +58,7 @@ services:
 
     volumes:
       - clickhouse_data:/var/lib/clickhouse
-      - ../clickhouse/keeper.xml:/etc/clickhouse-server/config.d/lens-keeper.xml:ro
+      - ./deploy/clickhouse/keeper.xml:/etc/clickhouse-server/config.d/lens-keeper.xml:ro
 
     healthcheck:
       test:
