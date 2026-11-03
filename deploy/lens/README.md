@@ -134,6 +134,16 @@ A cursor is bound to its team and window. Replaying a page or the whole window r
 
 Accepted compact records survive service restarts. The gateway exporter retains its bounded memory queue, three delivery attempts and limited shutdown drain. Callbacks lost before successful ingestion are not recovered by this change. Backfill can recover a raw record retained after an incomplete compact write, but cannot recover a record absent from ClickHouse
 
+## Diagnose a LiteLLM connection
+
+The gateway needs `LITELLM_LENS_URL`, `LITELLM_LENS_PUBLIC_URL`, `LITELLM_LENS_SERVICE_TOKEN` and `LENS_GATEWAY_SECRET`. Set both secrets on Lens as well as LiteLLM with identical values; without `LITELLM_LENS_SERVICE_TOKEN` Lens does not mount the `/internal` routes the gateway uses. On a shared Docker network, point `LITELLM_LENS_URL` at the private Lens address such as `http://lens:4318`, and keep `LITELLM_LENS_PUBLIC_URL` on the public address agents use
+
+Use a LiteLLM build that includes the Lens adapter (PR #45529). Older builds predate the tracing store and the connection check. Verify the connection with `GET /lens/service` through the gateway using a LiteLLM administrator credential; a ready connection reports `connected: true`, `status.storage_ready: true`, `status.credentials_ready: true` and `status.public_contract: 1`
+
+The bundled ClickHouse startup logs `Address already in use` for 9181, 9009, 8123, 9000, 9004 and 9005 while the entrypoint's temporary init server runs, then `Listen [::] ... Address family for hostname not supported` when IPv6 is disabled. These warnings do not by themselves mean ClickHouse crashed. If the real server also fails to bind, check for a second ClickHouse container on the same host or host networking; only one instance can own those ports. `Keeper will work slower` comes from `<quorum_reads>true</quorum_reads>` in `deploy/clickhouse/keeper.xml`; a single-node deployment can set it to `false` and rebuild the ClickHouse image when read latency matters
+
+LiteLLM's startup log prints its proxy port and Postgres connection budget. Verify the Coolify domain, healthcheck and container port agree, and keep workers multiplied by the writer pool size under Postgres `max_connections` minus reserved connections
+
 ## Check and restart
 
 From the repository root:
