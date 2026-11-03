@@ -26,7 +26,7 @@ docker run --rm --user "$(id -u):$(id -g)" --volume "$lens_temp:/setup" "$lens_i
 test "$before" = "$(shasum -a 256 "$lens_temp/.env")"
 docker network create "$lens_name" >/dev/null
 docker run -d --name "$lens_storage" --network "$lens_name" --env-file "$lens_temp/.env" \
-  -e CLICKHOUSE_USER=lens -e CLICKHOUSE_DB=lens -e CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1 \
+  -e CLICKHOUSE_USER=lens -e CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1 \
   --volume "$lens_root/deploy/clickhouse/keeper.xml:/etc/clickhouse-server/config.d/lens-keeper.xml:ro" \
   --volume "$lens_root/deploy/clickhouse/logging.xml:/etc/clickhouse-server/config.d/lens-logging.xml:ro" \
   clickhouse/clickhouse-server:26.9.6.6@sha256:eb4870e7ca7ed70c259eebfcfbee6cf797017f6b5436c2926bbbfe3d4d28486e \

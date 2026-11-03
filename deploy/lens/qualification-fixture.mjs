@@ -52,7 +52,7 @@ export async function withFixture(lane, image, run) {
   const environmentFile = path.join(directory, "runtime.env");
   const storage = `${name}-clickhouse`;
   const server = `${name}-server`;
-  await fs.writeFile(environmentFile, `LENS_MODE=standalone\nLENS_ADMIN_TOKEN=${admin}\nCLICKHOUSE_HOST=${storage}\nCLICKHOUSE_DATABASE=lens\nCLICKHOUSE_DB=lens\nCLICKHOUSE_USER=lens\nCLICKHOUSE_PASSWORD=${password}\nCLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1\n`, { mode: 0o600 });
+  await fs.writeFile(environmentFile, `LENS_MODE=standalone\nLENS_ADMIN_TOKEN=${admin}\nCLICKHOUSE_HOST=${storage}\nCLICKHOUSE_DATABASE=lens\nCLICKHOUSE_USER=lens\nCLICKHOUSE_PASSWORD=${password}\nCLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1\n`, { mode: 0o600 });
   const docker = (args, options) => execute("docker", args, options);
   const networks = [];
   let cleaning;
