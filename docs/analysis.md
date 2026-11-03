@@ -46,7 +46,7 @@ Use `api_key_env` to name the environment variable holding the credential. Do no
 Apply the configuration from the repository root:
 
 ```sh
-docker compose -f deploy/lens/compose.yaml up -d --wait
+./deploy/lens/ctl up -d --wait
 ```
 
 Open **Settings > Analysis** and select **Check configuration**. Your `analysis` model should appear, followed by **Analysis is configured** when the investigation worker is ready. This confirms configuration and worker readiness; your first analysis run verifies provider access

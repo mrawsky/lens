@@ -10,6 +10,14 @@ Lens runs with ClickHouse and includes its UI, API and background processing. Yo
 Set up standalone Lens for this project. Read https://github.com/BerriAI/lens/blob/main/deploy/lens/README.md and inspect the repository, running services, Docker availability, and existing telemetry configuration first. Reuse a working Lens deployment if present. Otherwise use the documented source quickstart to start Lens and its bundled ClickHouse, recording the source commit used. Do not add a gateway or PostgreSQL. Ask only when a missing decision affects deployment location, access, existing data, or the agent to connect. Preserve existing configuration, secrets, model endpoints, and stored data; never print or commit credentials or rotate existing keys without a reason. Detect the agent framework, add the smallest supported instrumentation change, and keep telemetry credentials separate from model credentials. Use a Lens address reachable from the agent's actual network. Run a small real task and verify its receipt, exact trace ID, input, output, and any tool calls in Lens. Demo data and readiness alone do not count. If no runnable agent is present, verify a clearly labelled test trace and explain the remaining project integration. Report the UI URL, files changed, evidence, and how to stop and restart without deleting data. Add an analysis provider only if I ask for investigations, signals, or eval judging.
 ```
 
+## Deploy Lens on Coolify
+
+Use this when the target is a Coolify instance. The resource is a Git-based Docker Compose application; the Compose file and ClickHouse image are in the repository
+
+```text
+Deploy Lens from this repository on Coolify. Read https://github.com/BerriAI/lens/blob/main/deploy/lens/README.md first. Create a Docker Compose resource from the Git repository with Base Directory set to / and Docker Compose Location set to /deploy/lens/compose.yaml. Leave Preserve repository during deployment off. Add a domain for the lens service on internal port 4318, or use the generated domain. Deploy and wait for both services to become healthy. Retrieve SERVICE_PASSWORD_64_LENSADMIN from the resource Environment Variables and sign in at /ui/ without printing the value. Keep the ClickHouse volume and environment variables with any backup. Report the Lens URL, the deployment status, and a verified trace you sent to /v1/traces without exposing credentials.
+```
+
 ## Add Lens to existing LiteLLM
 
 Use this when you already run LiteLLM and want Lens available from its dashboard. The agent must confirm that deployment's actual version and capabilities before changing it. Official paired Lens and LiteLLM releases share a version and are tested together. Lens remains independently deployable; verify API and UI compatibility when connecting an existing installation

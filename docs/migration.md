@@ -26,10 +26,9 @@ For the repository's Compose deployment, start ClickHouse on its own and inspect
 the migration plan with the image you intend to deploy:
 
 ```bash
-docker compose --project-directory deploy/lens -f deploy/lens/compose.yaml stop lens
-docker compose --project-directory deploy/lens -f deploy/lens/compose.yaml up -d --wait clickhouse
-docker compose --project-directory deploy/lens -f deploy/lens/compose.yaml \
-  run --rm --no-deps -e LENS_MIGRATION_POSTGRES_URL \
+./deploy/lens/ctl stop lens
+./deploy/lens/ctl up -d --wait clickhouse
+./deploy/lens/ctl run --rm --no-deps -e LENS_MIGRATION_POSTGRES_URL \
   --entrypoint /usr/local/bin/lens-migrate lens
 ```
 
@@ -48,8 +47,7 @@ and spend logs are not loaded from PostgreSQL
 After checking the plan, apply that snapshot with both Lens runtimes still stopped:
 
 ```bash
-docker compose --project-directory deploy/lens -f deploy/lens/compose.yaml \
-  run --rm --no-deps -e LENS_MIGRATION_POSTGRES_URL \
+./deploy/lens/ctl run --rm --no-deps -e LENS_MIGRATION_POSTGRES_URL \
   --entrypoint /usr/local/bin/lens-migrate lens --apply --source-stopped
 ```
 

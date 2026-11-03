@@ -1,4 +1,3 @@
-
 name: lens
 
 services:
@@ -6,23 +5,21 @@ services:
     build:
       context: .
       dockerfile: deploy/runtime/Dockerfile
-    image: lens:local
+      args:
+        LENS_VERSION: ${LENS_VERSION:-0.1.0-dev.0}
+    image: ${LENS_IMAGE:-lens:local}
 
     environment:
       LENS_MODE: standalone
-      LENS_ADMIN_TOKEN: ${SERVICE_PASSWORD_64_LENSADMIN}
-      LENS_PUBLIC_URL: ${SERVICE_URL_LENS_4318}
+      LENS_ADMIN_TOKEN: ${SERVICE_PASSWORD_64_LENSADMIN:-}
+      LENS_PUBLIC_URL: ${SERVICE_URL_LENS:-}
 
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_USER: lens
-      CLICKHOUSE_PASSWORD: ${SERVICE_PASSWORD_64_LENSCH}
+      CLICKHOUSE_PASSWORD: ${SERVICE_PASSWORD_64_LENSCH:-}
       CLICKHOUSE_DATABASE: lens
 
-      AGENT_TRACING_RETENTION_DAYS: "14"
-
-      # LiteLLM integration
-      LITELLM_LENS_SERVICE_TOKEN: ${SERVICE_PASSWORD_64_LENSSERVICE}
-      LENS_GATEWAY_SECRET: ${SERVICE_PASSWORD_64_LENSGATEWAY}
+      AGENT_TRACING_RETENTION_DAYS: ${AGENT_TRACING_RETENTION_DAYS:-14}
 
     expose:
       - "4318"
@@ -37,9 +34,14 @@ services:
 
     restart: unless-stopped
     read_only: true
+    stop_grace_period: 30s
 
     tmpfs:
-      - /tmp:rw,noexec,nosuid,size=1g
+      - /tmp:rw,noexec,nosuid,size=${LENS_TMP_SIZE:-1g}
+
+    mem_limit: 2g
+    cpus: 2
+    pids_limit: 128
 
     cap_drop:
       - ALL
@@ -47,28 +49,43 @@ services:
     security_opt:
       - no-new-privileges:true
 
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - --fail
+        - --silent
+        - http://127.0.0.1:4318/health/ready
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
   clickhouse:
-    image: clickhouse/clickhouse-server:26.9.6.6@sha256:eb4870e7ca7ed70c259eebfcfbee6cf797017f6b5436c2926bbbfe3d4d28486e
+    build:
+      context: deploy/clickhouse
+      dockerfile: Dockerfile
 
     environment:
       CLICKHOUSE_USER: lens
-      CLICKHOUSE_PASSWORD: ${SERVICE_PASSWORD_64_LENSCH}
+      CLICKHOUSE_PASSWORD: ${SERVICE_PASSWORD_64_LENSCH:-}
       CLICKHOUSE_DB: lens
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
 
     volumes:
       - clickhouse_data:/var/lib/clickhouse
-      - ./deploy/clickhouse/keeper.xml:/etc/clickhouse-server/config.d/lens-keeper.xml:ro
 
     healthcheck:
       test:
         - CMD-SHELL
-        - 'clickhouse-client --host clickhouse --user lens --password "$$CLICKHOUSE_PASSWORD" --query "SELECT 1" >/dev/null'
+        - 'clickhouse-client --host 127.0.0.1 --user lens --password "$$CLICKHOUSE_PASSWORD" --query "SELECT 1" >/dev/null'
       interval: 5s
       timeout: 5s
       retries: 30
+      start_period: 30s
 
     restart: unless-stopped
+    stop_grace_period: 60s
 
     networks:
       - storage

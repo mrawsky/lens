@@ -2,12 +2,12 @@
 set -euo pipefail
 lens_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 lens_root="$(cd -- "$lens_dir/../.." && pwd)"
+lens_compose=(docker compose --project-directory "$lens_root" --env-file "$lens_dir/.env" --file "$lens_dir/compose.yaml" --file "$lens_dir/compose.local.yaml")
 if [[ -z "${LENS_IMAGE:-}" ]]; then
   unset LENS_IMAGE
 fi
 docker info >/dev/null
 docker compose version >/dev/null
-lens_compose=(docker compose --project-directory "$lens_dir" --file "$lens_dir/compose.yaml")
 prepare() {
   test ! -L "$lens_dir/.env"
   if [[ -z "${LENS_IMAGE:-}" && -f "$lens_dir/.env" ]] && \
@@ -19,7 +19,8 @@ prepare() {
   fi
   if [[ -z "${LENS_IMAGE:-}" ]]; then
     export LENS_IMAGE=lens:local
-    docker build --file "$lens_root/deploy/runtime/Dockerfile" --tag "$LENS_IMAGE" "$lens_root"
+    docker build --build-arg LENS_VERSION="${LENS_VERSION:-0.1.0-dev.0}" \
+      --file "$lens_root/deploy/runtime/Dockerfile" --tag "$LENS_IMAGE" "$lens_root"
   elif ! docker image inspect "$LENS_IMAGE" >/dev/null 2>&1; then
     docker pull "$LENS_IMAGE"
   fi

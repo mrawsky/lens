@@ -9,7 +9,7 @@
 
 <h3>Self-improving agents, on your infrastructure.</h3>
 
-**[Start locally](deploy/lens/README.md#start-locally)** with Git and Docker, or **[Set it up for me](docs/setup-with-agent.md)** with your coding agent
+**[Start locally](deploy/lens/README.md#start-locally)** with Git and Docker, **[Deploy on Coolify](deploy/lens/README.md#deploy-on-coolify)**, or **[Set it up for me](docs/setup-with-agent.md)** with your coding agent
 
 <details>
 <summary>Copy a setup prompt</summary>

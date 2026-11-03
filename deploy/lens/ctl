@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+lens_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+lens_root="$(cd -- "$lens_dir/../.." && pwd)"
+exec docker compose \
+  --project-directory "$lens_root" \
+  --env-file "$lens_dir/.env" \
+  --file "$lens_dir/compose.yaml" \
+  --file "$lens_dir/compose.local.yaml" \
+  "$@"

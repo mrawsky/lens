@@ -16,11 +16,33 @@ cd lens
 ./deploy/lens/start
 ```
 
-The first start builds Lens, generates private credentials in `deploy/lens/.env`, and starts Lens plus ClickHouse. ClickHouse includes the Keeper configuration Lens needs. You do not need a LiteLLM gateway, PostgreSQL, host Python, Node.js, or provider credentials to record and inspect traces
+The first start builds Lens and the ClickHouse image with its Keeper configuration, generates private credentials in `deploy/lens/.env`, and starts Lens plus ClickHouse. You do not need a LiteLLM gateway, PostgreSQL, host Python, Node.js, or provider credentials to record and inspect traces
 
 Open [Lens](http://localhost:4318/ui/) and sign in using `LENS_ADMIN_TOKEN` from `deploy/lens/.env`. Read that file locally; do not paste it into shared logs or commit it. The starter binds Lens to localhost and leaves ClickHouse off the host network
 
 Rerunning the start command preserves the environment file, credentials and ClickHouse volume. The initial image build takes longer than subsequent starts
+
+The `deploy/lens/ctl` wrapper runs Docker Compose with the repository root as the project directory and loads the local override. Use it for the maintenance commands in this guide
+
+## Deploy on Coolify
+
+Coolify runs Lens from the same `deploy/lens/compose.yaml` used locally. Local commands add `deploy/lens/compose.local.yaml` to publish the host port and read `deploy/lens/.env`; Coolify uses only the base file. The base file reads Coolify generated values for the administrator token, the ClickHouse password and the public URL, so a new deployment needs no copied credentials. Coolify also builds the bundled ClickHouse image from `deploy/clickhouse/Dockerfile`, which bakes in the Keeper and logging configuration
+
+Create a project and environment, add a new resource, choose the Git repository and the **Docker Compose** build pack. Use the Git-based Compose application, not a pasted Compose definition, because both services build from this repository. Set **Base Directory** to `/` and **Docker Compose Location** to `/deploy/lens/compose.yaml`. Leave **Preserve repository during deployment** off; the Compose file mounts no repository files
+
+Optional: add a domain for the `lens` service with internal port `4318`, for example `https://lens.example.com:4318`. Use a hostname only; Lens uses the public origin and rejects a URL with a path. Without a domain, Coolify assigns one from its wildcard domain or sslip.io; set a custom domain for production. The public request uses the normal HTTP or HTTPS port; the `:4318` suffix only tells the proxy which container port to reach
+
+Deploy. The first build compiles the Rust service and the UI and pulls the ClickHouse image, so allow a long build and at least 4 GB of memory on the build host. Later deploys reuse the build cache. Size the runtime server for ClickHouse storage plus the Lens memory limit of 2 GB; ClickHouse has no memory limit in this Compose file. If you run more than one Lens resource on the same server, set `LENS_IMAGE` to a unique tag in each resource, for example `lens-production:local`, so their images do not replace one another
+
+When the deployment is healthy, open `https://<your domain>/ui/` and sign in with the value of `SERVICE_PASSWORD_64_LENSADMIN` from the resource's **Environment Variables**. That generated value is the administrator token. Keep it private. Lens refuses to start when it is empty
+
+Coolify stores ClickHouse data in a managed volume named after the application. Removing the resource, or deleting its volumes, deletes traces, investigations and datasets. Back up the volume before destructive changes. The `deploy/lens/backup` helper targets a local checkout, not a Coolify resource; for Coolify, stop the `clickhouse` service during the snapshot or use your volume snapshot tooling, and keep the resource's environment variables with the backup
+
+Optional settings go in the resource's **Environment Variables**. Redeploy after changing them. Trace retention uses `AGENT_TRACING_RETENTION_DAYS`. Provider credentials such as `ANTHROPIC_API_KEY` follow [Configure analysis models](../../docs/analysis.md). To connect a LiteLLM gateway, set `LITELLM_LENS_SERVICE_TOKEN` and `LENS_GATEWAY_SECRET` here with the same values as the gateway, and set `LITELLM_LENS_URL` on the gateway to the Lens service URL. Do not commit these values to the repository
+
+The Lens container keeps its read-only root filesystem, dropped capabilities and no-new-privileges setting. Investigation calculations need a Linux host with Landlock ABI 3 and seccomp, which supported Coolify Docker hosts provide. Use the resource's **Runtime Logs** and the `/health/ready` endpoint when a deploy fails
+
+Coolify applies the Compose health checks, so it waits for ClickHouse and Lens to become healthy. A deployment that stays unhealthy usually means ClickHouse could not start, Lens could not reach ClickHouse, or the public URL does not match the browser origin
 
 ## Record your first trace
 
@@ -59,14 +81,16 @@ Keep `deploy/lens/.env` private and retain it alongside your persistent data. Th
 | A tracing key generated in Lens | An agent or exporter uploading traces |
 | An analysis or evaluation provider key | Lens sending selected trace content to the configured provider |
 
-For a server deployment, put Lens behind your TLS reverse proxy and set `LENS_PUBLIC_URL=https://lens.example.com` in the environment file. Replace that hostname with yours. This value controls the address displayed to agents and enables secure session cookies. Forward the UI and API paths to port 4318; never expose ClickHouse publicly
+On Coolify the first two values are generated as `SERVICE_PASSWORD_64_LENSADMIN` and `SERVICE_PASSWORD_64_LENSCH` in the resource's Environment Variables. The Compose file maps them to `LENS_ADMIN_TOKEN` and `CLICKHOUSE_PASSWORD`
+
+For a server deployment outside Coolify, put Lens behind your TLS reverse proxy and set `LENS_PUBLIC_URL=https://lens.example.com` in the environment file. Replace that hostname with yours. This value controls the address displayed to agents and enables secure session cookies. Forward the UI and API paths to port 4318; never expose ClickHouse publicly
 
 If your reverse proxy runs outside this host's network namespace, set `LENS_BIND_ADDRESS` to the private interface it can reach. For a different host port, set `LENS_PORT` and update `LENS_PUBLIC_URL` to the corresponding public address. The default bind address is `127.0.0.1`
 
 Apply environment changes without rebuilding the image:
 
 ```sh
-docker compose -f deploy/lens/compose.yaml up -d --wait
+./deploy/lens/ctl up -d --wait
 ```
 
 Provider environment variables in `deploy/lens/.env` are passed to the Lens service. Supply production credentials using your platform's secret management where available
@@ -115,10 +139,10 @@ Accepted compact records survive service restarts. The gateway exporter retains 
 From the repository root:
 
 ```sh
-docker compose -f deploy/lens/compose.yaml ps
+./deploy/lens/ctl ps
 curl --fail http://localhost:4318/health/ready
-docker compose -f deploy/lens/compose.yaml logs --tail=100 lens
-docker compose -f deploy/lens/compose.yaml restart lens
+./deploy/lens/ctl logs --tail=100 lens
+./deploy/lens/ctl restart lens
 ```
 
 `ps` should show both services healthy. The readiness request returns HTTP 200. Verify a stored trace or dataset in the UI after restarting; readiness alone is not a data-recovery test
@@ -126,12 +150,12 @@ docker compose -f deploy/lens/compose.yaml restart lens
 Stop the installation while retaining its data:
 
 ```sh
-docker compose -f deploy/lens/compose.yaml down
+./deploy/lens/ctl down
 ```
 
 Keep the `clickhouse_data` volume and environment file. Adding `--volumes` to `down` deletes the database, including stored traces, investigations, datasets and sessions
 
-Use [Back up and restore Lens](../../docs/backup.md) before changing a persistent deployment. The helper retains ClickHouse data, coordination state, credentials and the installed Lens image, and restores them into a separate deployment for verification
+Use [Back up and restore Lens](../../docs/backup.md) before changing a persistent deployment. The helper retains ClickHouse data, coordination state, credentials, the installed Lens image and the Compose and ClickHouse build files, and restores them into a separate deployment for verification
 
 ## Resolve startup problems
 
@@ -140,8 +164,9 @@ Use [Back up and restore Lens](../../docs/backup.md) before changing a persisten
 | Docker is unavailable | Start Docker, verify `docker info`, and rerun `./deploy/lens/start` |
 | Port 4318 is in use | Set a free `LENS_PORT` and corresponding `LENS_PUBLIC_URL` in `deploy/lens/.env`, then apply the configuration |
 | A required secret is missing | Check the existing environment file. Setup deliberately preserves it rather than rotating credentials behind your back |
-| ClickHouse is unhealthy | Run `docker compose -f deploy/lens/compose.yaml logs --tail=100 clickhouse`; check disk space and the mounted Keeper configuration |
+| ClickHouse is unhealthy | Run `./deploy/lens/ctl logs --tail=100 clickhouse`; check disk space and the baked Keeper configuration in `deploy/clickhouse/Dockerfile` |
 | Lens cannot reach ClickHouse | Check both services in `ps`, their logs, and the retained database credential |
+| Changing the ClickHouse password breaks startup | The ClickHouse user was created with the original password on first start. Restore the old value, or rotate the user inside ClickHouse before changing the environment |
 | External ClickHouse answers queries but Lens exits before becoming ready | Check the server's KeeperMap and `keeper_map_path_prefix` configuration and the Lens database user's create, insert, read and alter permissions. An analytical query alone does not establish that Lens can initialize its state |
 | Setup says no analysis provider is configured | Tracing can still work. Follow the [analysis guide](../../docs/analysis.md) to enable investigations |
 | Login works locally but not through the public hostname | Check that `LENS_PUBLIC_URL` matches the browser origin and that your proxy forwards HTTPS correctly |

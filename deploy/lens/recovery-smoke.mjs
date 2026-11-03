@@ -13,10 +13,14 @@ const assets = path.dirname(fileURLToPath(import.meta.url));
 const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "lens-recovery-"));
 await fs.chmod(temporary, 0o700);
 const prefix = `lens-recovery-${process.pid}`;
-const deployments = ["source", "restored"].map((name) => ({
-  directory: path.join(temporary, name, "deploy", "lens"),
-  project: `${prefix}-${name}`,
-}));
+const deployments = ["source", "restored"].map((name) => {
+  const root = path.join(temporary, name);
+  return {
+    root,
+    directory: path.join(root, "deploy", "lens"),
+    project: `${prefix}-${name}`,
+  };
+});
 
 async function execute(command, args, environment = {}, expected = 0) {
   const child = spawn(command, args, {
@@ -48,18 +52,25 @@ async function availablePort() {
 
 function compose(deployment, ...args) {
   return execute("docker", ["compose", "--project-name", deployment.project,
-    "--project-directory", deployment.directory,
-    "--file", path.join(deployment.directory, "compose.yaml"), ...args], deployment.environment);
+    "--project-directory", deployment.root,
+    "--env-file", path.join(deployment.directory, ".env"),
+    "--file", path.join(deployment.directory, "compose.yaml"),
+    "--file", path.join(deployment.directory, "compose.local.yaml"), ...args], deployment.environment);
 }
 
 try {
   for (const deployment of deployments) {
     await fs.mkdir(deployment.directory, { recursive: true });
-    await fs.mkdir(path.join(deployment.directory, "../clickhouse"));
-    for (const name of ["start", "backup", "restore", "compose.yaml"]) {
+    await fs.mkdir(path.join(deployment.root, "deploy", "clickhouse"));
+    for (const name of ["start", "backup", "restore", "ctl", "compose.yaml", "compose.local.yaml"]) {
       await fs.copyFile(path.join(assets, name), path.join(deployment.directory, name));
     }
-    await fs.copyFile(path.join(assets, "../clickhouse/keeper.xml"), path.join(deployment.directory, "../clickhouse/keeper.xml"));
+    for (const name of ["start", "backup", "restore", "ctl"]) {
+      await fs.chmod(path.join(deployment.directory, name), 0o755);
+    }
+    for (const name of ["Dockerfile", "keeper.xml", "logging.xml"]) {
+      await fs.copyFile(path.join(assets, "../clickhouse", name), path.join(deployment.root, "deploy", "clickhouse", name));
+    }
     deployment.origin = `http://127.0.0.1:${await availablePort()}`;
     deployment.environment = {
       COMPOSE_PROJECT_NAME: deployment.project,

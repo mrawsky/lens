@@ -20,7 +20,7 @@ To use an existing Lens image, set `LENS_IMAGE` to its exact local tag or verifi
 Stop the UI with Ctrl-C. Lens and ClickHouse retain their data and continue running until you stop them:
 
 ```sh
-docker compose -f deploy/lens/compose.yaml stop
+./deploy/lens/ctl stop
 ```
 
 Use `npm run dev` again to resume. For a deployment without development tooling, follow [Run Lens](deploy/lens/README.md). Provider configuration is optional until you need [analysis](docs/analysis.md) or [Signals](docs/signals.md)

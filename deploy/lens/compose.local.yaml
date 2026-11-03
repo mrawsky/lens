@@ -1,0 +1,14 @@
+services:
+  lens:
+    environment:
+      LENS_ADMIN_TOKEN: ${LENS_ADMIN_TOKEN:?Run ./deploy/lens/start to create deployment credentials}
+      LENS_PUBLIC_URL: ${LENS_PUBLIC_URL:-http://localhost:4318}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?Run ./deploy/lens/start to create deployment credentials}
+    env_file:
+      - deploy/lens/.env
+    ports:
+      - "${LENS_BIND_ADDRESS:-127.0.0.1}:${LENS_PORT:-4318}:4318"
+
+  clickhouse:
+    environment:
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?Run ./deploy/lens/start to create deployment credentials}

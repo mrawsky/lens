@@ -45,7 +45,7 @@ LENS_EVALUATION_MODELS='[{"name":"signals","model":"typesafe/jev-latest","provid
 Replace `<your-provider-key>` with the key from your provider account. Keep the environment file private. Apply the change from the repository root:
 
 ```sh
-docker compose -f deploy/lens/compose.yaml up -d --wait
+./deploy/lens/ctl up -d --wait
 ```
 
 Open **Settings > Signals**, choose `signals`, select the questions to evaluate and save. Run your agent and open its trace to check the resulting flags. Provider calls can incur charges and include captured trace content
